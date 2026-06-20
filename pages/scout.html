@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scout · Market Entry Predictor</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+:root{--bg:#030712;--card:#0d1f3c;--card2:#0a1830;--border:#1a3356;--green:#10b981;--blue:#3b82f6;--orange:#f97316;--purple:#8b5cf6;--amber:#f59e0b;--red:#ef4444;--text:#e2e8f0;--muted:#64748b;--mono:'Space Mono',monospace;--sans:'DM Sans',sans-serif;--display:'Bebas Neue',sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(16,185,129,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(16,185,129,.04) 1px,transparent 1px);background-size:60px 60px;pointer-events:none;z-index:0}
+.wrap{position:relative;z-index:1;max-width:1240px;margin:0 auto;padding:0 32px 80px}
+nav{padding:18px 32px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;background:rgba(3,7,18,.92);backdrop-filter:blur(16px)}
+.nav-logo{display:flex;align-items:center;gap:12px}
+.nav-box{width:34px;height:34px;border:2px solid var(--green);border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;font-weight:700;color:var(--green)}
+.nav-title{font-family:var(--display);font-size:19px;letter-spacing:.08em}
+.nav-link{font-family:var(--mono);font-size:10px;color:var(--muted);text-decoration:none;letter-spacing:.1em;text-transform:uppercase}
+.nav-link:hover{color:var(--green)}
+.new-scout-btn{background:var(--green);color:#000;border:none;border-radius:8px;padding:9px 18px;font-family:var(--sans);font-size:12px;font-weight:700;cursor:pointer;letter-spacing:.02em;display:inline-flex;align-items:center;gap:6px;transition:all .2s;text-decoration:none}
+.new-scout-btn:hover{background:#059669;transform:translateY(-1px);box-shadow:0 4px 14px rgba(16,185,129,.3)}
+.new-scout-btn.ghost-btn{background:transparent;color:var(--text);border:1px solid var(--border)}
+.new-scout-btn.ghost-btn:hover{background:transparent;border-color:var(--green);color:var(--green);box-shadow:none}
+.hist-pop{position:absolute;top:62px;right:24px;background:var(--card);border:1px solid var(--border);border-radius:10px;width:340px;max-height:420px;overflow:auto;box-shadow:0 12px 40px rgba(0,0,0,.5);display:none;z-index:200}
+.hist-pop.show{display:block}
+.hist-pop .hh{font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--muted);text-transform:uppercase;padding:14px 16px 6px}
+.hist-pop .empty{padding:18px 16px;font-size:12px;color:var(--muted)}
+.hist-item{padding:11px 16px;border-top:1px solid var(--border);cursor:pointer;display:grid;grid-template-columns:1fr auto;gap:6px 12px;align-items:center;transition:background .15s}
+.hist-item:hover{background:var(--card2)}
+.hist-item .co{font-weight:700;font-size:13px}
+.hist-item .meta{font-family:var(--mono);font-size:10px;color:var(--muted);grid-column:1/-1}
+.hist-item .pct{font-family:var(--mono);font-size:11px;font-weight:700;color:var(--green)}
+.hist-del{background:none;border:none;color:var(--muted);font-size:14px;cursor:pointer;padding:2px 8px;border-radius:4px}
+.hist-del:hover{background:rgba(239,68,68,.15);color:var(--red)}
+.hist-clear{padding:10px 16px;border-top:1px solid var(--border);font-family:var(--mono);font-size:10px;color:var(--muted);cursor:pointer;text-align:center;letter-spacing:.1em}
+.hist-clear:hover{color:var(--red)}
+
+/* header / query bar */
+.qbar{margin-top:28px;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px 26px;display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}
+.qbar h1{font-family:var(--display);font-size:40px;letter-spacing:.03em}
+.qmeta{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-top:4px}
+.qmeta b{color:var(--green)}
+.prog{font-family:var(--mono);font-size:11px;color:var(--muted);display:flex;align-items:center;gap:10px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--amber);animation:pulse 1.2s infinite}
+.dot.done{background:var(--green);animation:none}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+.sect-label{font-family:var(--mono);font-size:10px;letter-spacing:.16em;color:var(--muted);text-transform:uppercase;margin:34px 0 14px;display:flex;align-items:center;gap:10px}
+.sect-label::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* top grid: readiness + agents */
+.top{display:grid;grid-template-columns:300px 1fr;gap:20px}
+.rcard{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px;text-align:center;position:relative;overflow:hidden}
+.rcard::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--green),transparent)}
+.gauge{width:170px;height:170px;border-radius:50%;margin:6px auto 14px;display:flex;align-items:center;justify-content:center;background:conic-gradient(var(--green) 0deg,#0a1830 0deg);transition:background 1s ease}
+.gauge-inner{width:132px;height:132px;border-radius:50%;background:var(--card);display:flex;flex-direction:column;align-items:center;justify-content:center}
+.gauge-num{font-family:var(--display);font-size:54px;line-height:1;color:var(--green)}
+.gauge-lbl{font-family:var(--mono);font-size:8px;letter-spacing:.14em;color:var(--muted);text-transform:uppercase;margin-top:4px}
+.verdict{font-size:14px;font-weight:700;margin-top:6px;min-height:20px}
+.chips{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:12px}
+.chip{font-family:var(--mono);font-size:9px;padding:4px 9px;border-radius:5px;border:1px solid var(--border);color:var(--muted)}
+.chip.high{color:var(--green);border-color:rgba(16,185,129,.4)}
+.chip.medium{color:var(--amber);border-color:rgba(245,158,11,.4)}
+.chip.low{color:var(--red);border-color:rgba(239,68,68,.4)}
+
+.agents{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-content:start}
+.ag{background:var(--card2);border:1px solid var(--border);border-radius:11px;padding:14px 16px;transition:border-color .3s}
+.ag.run{border-color:rgba(245,158,11,.5)}
+.ag.done{border-color:rgba(16,185,129,.4)}
+.ag-top{display:flex;align-items:center;justify-content:space-between}
+.ag-name{display:flex;align-items:center;gap:9px;font-size:13px;font-weight:600}
+.ag-ico{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px}
+.ag-st{font-family:var(--mono);font-size:8px;letter-spacing:.1em;padding:3px 7px;border:1px solid var(--border);border-radius:4px;color:var(--muted)}
+.ag-st.run{color:var(--amber);border-color:rgba(245,158,11,.4)}
+.ag-st.done{color:var(--green);border-color:rgba(16,185,129,.4)}
+.ag-bar{height:5px;background:rgba(255,255,255,.06);border-radius:3px;margin-top:11px;overflow:hidden}
+.ag-bar-f{height:100%;width:0;border-radius:3px;transition:width .8s ease}
+.ag-sc{font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:6px}
+.ag-ev{margin-top:8px;display:flex;flex-direction:column;gap:5px}
+.ag-ev div{font-size:11px;color:#cbd5e1;background:rgba(255,255,255,.03);border-left:2px solid var(--border);padding:5px 8px;border-radius:3px;line-height:1.4}
+.cite{display:inline-block;margin-left:5px;font-family:var(--mono);font-size:9px;padding:1px 5px;border-radius:3px;background:rgba(16,185,129,.18);color:#10b981;text-decoration:none;vertical-align:super;font-weight:700;cursor:pointer;transition:all .15s}
+.cite:hover{background:rgba(16,185,129,.35);color:#fff;transform:translateY(-1px)}
+.cite.warn{background:rgba(245,158,11,.18);color:#f59e0b}
+.cite.warn:hover{background:rgba(245,158,11,.35);color:#fff}
+
+/* two-col: competitors + gap */
+.mid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.panel{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px}
+.panel-h{font-family:var(--display);font-size:24px;letter-spacing:.03em;margin-bottom:4px}
+.panel-sub{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:16px}
+.comp{border:1px solid var(--border);border-radius:10px;padding:13px 15px;margin-bottom:10px;background:var(--card2)}
+.comp-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px}
+.comp-name{font-weight:700;font-size:14px}
+.comp-threat{font-family:var(--mono);font-size:8px;padding:3px 7px;border-radius:4px;text-transform:uppercase}
+.t-high{color:var(--red);border:1px solid rgba(239,68,68,.4)}
+.t-medium{color:var(--amber);border:1px solid rgba(245,158,11,.4)}
+.t-low{color:var(--green);border:1px solid rgba(16,185,129,.4)}
+.sw{display:flex;gap:6px;flex-wrap:wrap;margin-top:5px}
+.sw span{font-size:10px;padding:3px 7px;border-radius:4px}
+.s-str{background:rgba(16,185,129,.1);color:#34d399}
+.s-wk{background:rgba(239,68,68,.1);color:#f87171}
+
+.gap-card{background:linear-gradient(160deg,rgba(16,185,129,.08),rgba(59,130,246,.05));border:1px solid rgba(16,185,129,.3)}
+.gap-title{font-family:var(--display);font-size:30px;letter-spacing:.02em;color:var(--green);line-height:1.05;margin-bottom:10px}
+.gap-sum{font-size:13px;color:#cbd5e1;line-height:1.6;margin-bottom:16px}
+.gap-row{margin-bottom:14px}
+.gap-row h4{font-family:var(--mono);font-size:9px;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;margin-bottom:7px}
+.tag{display:inline-block;font-size:11px;padding:4px 9px;border-radius:5px;margin:0 5px 5px 0;border:1px solid var(--border);background:var(--card2)}
+.wedge{background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.35);border-radius:8px;padding:12px 14px;font-size:13px;font-weight:600;color:#6ee7b7}
+
+/* band timeline */
+.band{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.bcard{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;opacity:.45;transition:all .4s}
+.bcard.active{opacity:1;border-color:rgba(139,92,246,.45);box-shadow:0 0 0 1px rgba(139,92,246,.15)}
+.bcard.run{opacity:1;border-color:rgba(245,158,11,.5)}
+.b-step{font-family:var(--mono);font-size:8px;color:var(--muted);letter-spacing:.1em}
+.b-ico{font-size:20px;margin:6px 0 8px}
+.b-name{font-size:13px;font-weight:700;margin-bottom:6px}
+.b-out{font-size:11px;color:#94a3b8;line-height:1.45;min-height:16px}
+.b-thinks{margin-top:6px;display:flex;flex-direction:column;gap:3px;min-height:0}
+.b-thinks .th{font-family:var(--mono);font-size:9px;color:#7c91b3;letter-spacing:.02em;line-height:1.4;opacity:0;transform:translateX(-4px);animation:thFade .3s ease forwards;display:flex;gap:5px}
+.b-thinks .th .blip{color:var(--amber);animation:pulse 1.2s infinite}
+@keyframes thFade{to{opacity:.85;transform:translateX(0)}}
+.b-st{margin-top:9px;font-family:var(--mono);font-size:8px;letter-spacing:.1em;color:var(--muted)}
+.bcard.run .b-st{color:var(--amber)}
+.bcard.active .b-st{color:var(--green)}
+
+.hidden{display:none}
+.err{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.4);color:#fca5a5;border-radius:10px;padding:14px 18px;margin-top:20px;font-family:var(--mono);font-size:12px}
+
+/* clickable band cards */
+.bcard{cursor:pointer;position:relative}
+.bcard:hover{transform:translateY(-2px);box-shadow:0 6px 24px rgba(0,0,0,.3)}
+.bcard.active::after{content:'click for details →';position:absolute;bottom:8px;right:12px;font-family:var(--mono);font-size:8px;color:var(--green);opacity:.7;letter-spacing:.08em}
+
+/* modal */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.78);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:1000;padding:40px 20px;opacity:0;pointer-events:none;transition:opacity .25s}
+.modal-bg.show{opacity:1;pointer-events:auto}
+.modal{background:var(--card);border:1px solid var(--border);border-radius:16px;max-width:780px;width:100%;max-height:88vh;overflow:auto;padding:36px 40px;position:relative}
+.modal::-webkit-scrollbar{width:6px}.modal::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.modal-close{position:absolute;top:16px;right:18px;background:none;border:none;color:var(--muted);font-size:24px;cursor:pointer;width:32px;height:32px;border-radius:6px;display:flex;align-items:center;justify-content:center;transition:all .2s}
+.modal-close:hover{background:var(--card2);color:var(--text)}
+.modal h2{font-family:var(--display);font-size:34px;letter-spacing:.03em;margin-bottom:4px;display:flex;align-items:center;gap:14px}
+.modal h2 .em{font-size:30px}
+.modal .sub{font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--green);text-transform:uppercase;margin-bottom:24px}
+.modal h3{font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--muted);text-transform:uppercase;margin:22px 0 10px}
+.kv{display:grid;grid-template-columns:140px 1fr;gap:8px 16px;font-size:13px;background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:14px 16px;margin-bottom:14px}
+.kv .k{font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;align-self:center}
+.kv .v{color:var(--text);word-break:break-word}
+.kv .v.big{font-family:var(--display);font-size:24px;color:var(--green);letter-spacing:.02em}
+.lst{display:flex;flex-direction:column;gap:6px}
+.lst div{font-size:13px;background:var(--card2);border-left:2px solid var(--green);border-radius:0 6px 6px 0;padding:9px 12px;line-height:1.5}
+.lst.warn div{border-left-color:var(--amber)}
+.lst.bad div{border-left-color:var(--red)}
+.altsite{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;padding:10px 12px;background:var(--card2);border:1px solid var(--border);border-radius:8px;margin-bottom:6px}
+.altsite .nm{font-weight:600;font-size:13px}
+.altsite .reason{font-size:11px;color:var(--muted);margin-top:2px;line-height:1.4}
+.altsite .sc{font-family:var(--mono);font-size:11px;color:var(--blue);font-weight:700}
+.tasktbl{display:flex;flex-direction:column;gap:8px}
+.tasktbl .team{font-family:var(--display);font-size:18px;letter-spacing:.04em;color:var(--green);margin:14px 0 6px;text-transform:uppercase}
+.tasktbl .task{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:12px}
+.tasktbl .task .ttl{font-weight:600}
+.tasktbl .task .own{font-family:var(--mono);font-size:10px;color:var(--blue)}
+.tasktbl .task .due{font-family:var(--mono);font-size:10px;color:var(--amber)}
+
+/* executive briefing panel */
+.brief{margin-top:36px;background:linear-gradient(160deg,rgba(139,92,246,.08),rgba(16,185,129,.05));border:1px solid rgba(139,92,246,.35);border-radius:16px;padding:32px 36px;position:relative;overflow:hidden;opacity:0;transition:opacity .5s}
+.brief.show{opacity:1}
+.brief::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--purple),var(--green),transparent)}
+.brief-head{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;margin-bottom:28px;flex-wrap:wrap}
+.brief-head h2{font-family:var(--display);font-size:44px;letter-spacing:.03em;line-height:1}
+.brief-head .sub{font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;margin-top:6px}
+.brief-btn{background:var(--green);color:#000;border:none;border-radius:8px;padding:11px 22px;font-family:var(--sans);font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:8px;transition:all .2s}
+.brief-btn:hover{background:#059669;transform:translateY(-1px)}
+.brief-btn.ghost{background:transparent;color:var(--text);border:1px solid var(--border);margin-left:8px}
+.brief-btn.ghost:hover{border-color:var(--green);color:var(--green)}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px}
+.kpi{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px}
+.kpi .lbl{font-family:var(--mono);font-size:9px;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;margin-bottom:8px}
+.kpi .val{font-family:var(--display);font-size:32px;letter-spacing:.02em;line-height:1}
+.kpi.green .val{color:var(--green)} .kpi.amber .val{color:var(--amber)} .kpi.blue .val{color:var(--blue)} .kpi.purple .val{color:var(--purple)} .kpi.red .val{color:var(--red)}
+.kpi .hint{font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:4px}
+.brief-grid{display:grid;grid-template-columns:1.4fr 1fr;gap:20px}
+.brief-box{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px 20px}
+.brief-box h4{font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;margin-bottom:12px}
+.decision-pill{display:inline-block;font-family:var(--display);font-size:22px;letter-spacing:.04em;padding:7px 16px;border-radius:8px;background:rgba(16,185,129,.15);color:var(--green);border:1px solid rgba(16,185,129,.4);margin-bottom:12px;text-transform:uppercase}
+.exec-sum{font-size:14px;color:#cbd5e1;line-height:1.6}
+.plan30{display:flex;flex-direction:column;gap:8px}
+.plan30 .d{display:flex;gap:10px;align-items:flex-start;font-size:12px}
+.plan30 .d .day{font-family:var(--mono);font-size:10px;color:var(--amber);min-width:46px;letter-spacing:.06em}
+.plan30 .d .txt{color:#cbd5e1;line-height:1.5}
+@media(max-width:920px){.kpis{grid-template-columns:repeat(2,1fr)}.brief-grid{grid-template-columns:1fr}.modal{padding:24px}.modal h2{font-size:26px}}
+@media(max-width:920px){.top{grid-template-columns:1fr}.agents{grid-template-columns:1fr}.mid{grid-template-columns:1fr}.band{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo"><div class="nav-box">MEP</div><div class="nav-title">Scout</div></div>
+  <div style="display:flex;align-items:center;gap:10px">
+    <button class="new-scout-btn ghost-btn" onclick="toggleHistory(event)">⏱ History</button>
+    <button class="new-scout-btn" onclick="newResearch()">+ New Scout</button>
+    <div id="histPop" class="hist-pop" onclick="event.stopPropagation()"></div>
+  </div>
+</nav>
+
+<div class="wrap">
+
+  <div class="qbar">
+    <div>
+      <h1 id="coName">—</h1>
+      <div class="qmeta">Entering <b id="mMarket">—</b> · <b id="mCountry">—</b></div>
+    </div>
+    <div class="prog"><span class="dot" id="pdot"></span><span id="pText">Deploying agents…</span></div>
+  </div>
+
+  <div id="errBox"></div>
+
+  <!-- Entry readiness + scout agents -->
+  <div class="sect-label">01 · Scout & Score</div>
+  <div class="top">
+    <div class="rcard">
+      <div class="gauge" id="gauge"><div class="gauge-inner"><div class="gauge-num" id="gNum">0%</div><div class="gauge-lbl">Entry Readiness</div></div></div>
+      <div class="verdict" id="verdict"></div>
+      <div class="chips" id="chips"></div>
+    </div>
+    <div class="agents" id="agents"></div>
+  </div>
+
+  <!-- Competition + Gap -->
+  <div class="sect-label">02 · Local Competition & The Gap</div>
+  <div class="mid">
+    <div class="panel">
+      <div class="panel-h">LOCAL COMPETITION</div>
+      <div class="panel-sub">// auto-discovered incumbents</div>
+      <div id="compList"><div style="color:var(--muted);font-size:13px">Scanning the market…</div></div>
+    </div>
+    <div class="panel gap-card">
+      <div class="panel-sub" style="color:#34d399">// market whitespace</div>
+      <div class="gap-title" id="gapTitle">Finding the gap…</div>
+      <div class="gap-sum" id="gapSum"></div>
+      <div class="gap-row"><h4>Underserved segments</h4><div id="gapSeg"></div></div>
+      <div class="gap-row"><h4>Incumbent weaknesses</h4><div id="gapWeak"></div></div>
+      <div class="gap-row"><h4>Recommended wedge</h4><div class="wedge hidden" id="gapWedge"></div></div>
+      <div id="gapSrc" style="margin-top:14px;font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:.08em"></div>
+    </div>
+  </div>
+
+  <!-- Band plan -->
+  <div class="sect-label">03 · Deploy the Agent Band</div>
+  <div class="band" id="band"></div>
+
+  <!-- Executive briefing (revealed after complete) -->
+  <div class="brief hidden" id="brief">
+    <div class="brief-head">
+      <div>
+        <h2>EXECUTIVE BRIEFING</h2>
+        <div class="sub">// consolidated decision package</div>
+      </div>
+      <div>
+        <button class="brief-btn" onclick="downloadPDF()">⬇ Download PDF</button>
+        <button class="brief-btn ghost" onclick="window.print()">Print</button>
+        <button class="brief-btn ghost" onclick="newResearch()">+ New Research</button>
+      </div>
+    </div>
+    <div class="kpis" id="kpis"></div>
+    <div class="brief-grid">
+      <div class="brief-box">
+        <h4>// decision</h4>
+        <div id="briefDecision"></div>
+        <h4 style="margin-top:18px">// rationale</h4>
+        <div class="exec-sum" id="briefSummary"></div>
+        <h4 style="margin-top:18px">// top risks</h4>
+        <div class="lst warn" id="briefRisks"></div>
+      </div>
+      <div class="brief-box">
+        <h4>// next 30 days</h4>
+        <div class="plan30" id="briefPlan"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Detail modal -->
+<div class="modal-bg" id="modalBg" onclick="if(event.target.id==='modalBg')closeModal()">
+  <div class="modal" id="modal"><button class="modal-close" onclick="closeModal()">×</button><div id="modalBody"></div></div>
+</div>
+
+<script>
+const Store={save(k,d){sessionStorage.setItem(k,JSON.stringify(d))},load(k){try{return JSON.parse(sessionStorage.getItem(k))}catch{return null}}};
+
+const AMETA={
+  job_posts:{name:"Job Posting Signals",color:"#10b981",ico:"💼"},
+  domain_regs:{name:"Domain Registration",color:"#3b82f6",ico:"🌐"},
+  exec_hires:{name:"Executive Hire Signals",color:"#f97316",ico:"👤"},
+  partnerships:{name:"Partnership & Conference",color:"#8b5cf6",ico:"🤝"},
+  patents:{name:"Patent & IP Signals",color:"#f59e0b",ico:"📄"},
+};
+const BAND=[
+  {id:"site_selection",step:"01",ico:"📍",name:"Site Selection"},
+  {id:"incentives",step:"02",ico:"🎁",name:"Gov Incentives"},
+  {id:"finance",step:"03",ico:"💰",name:"Finance"},
+  {id:"compliance",step:"04",ico:"⚖️",name:"Compliance"},
+  {id:"red_team",step:"05",ico:"🛡️",name:"Red Team"},
+  {id:"human_approval",step:"06",ico:"✋",name:"Human Approval"},
+  {id:"executive",step:"07",ico:"👔",name:"Executive Decision"},
+  {id:"task_assignment",step:"08",ico:"📋",name:"Task Assignment"},
+];
+
+const $=id=>document.getElementById(id);
+let q=Store.load("query");
+
+function init(){
+  if(!q||!q.company){location.href="/";return}
+  $("coName").textContent=q.company;
+  $("mMarket").textContent=q.market||"—";
+  $("mCountry").textContent=q.country||"—";
+  // scout agent cards
+  $("agents").innerHTML=Object.entries(AMETA).map(([id,m])=>`
+    <div class="ag" id="ag-${id}">
+      <div class="ag-top">
+        <div class="ag-name"><div class="ag-ico" style="background:${m.color}22;color:${m.color}">${m.ico}</div>${m.name}</div>
+        <div class="ag-st" id="agst-${id}">IDLE</div>
+      </div>
+      <div class="ag-bar"><div class="ag-bar-f" id="agbar-${id}" style="background:${m.color}"></div></div>
+      <div class="ag-sc" id="agsc-${id}">Standby</div>
+      <div class="ag-ev" id="agev-${id}"></div>
+    </div>`).join("");
+  // band cards (clickable)
+  $("band").innerHTML=BAND.map(b=>`
+    <div class="bcard" id="b-${b.id}" onclick="openModal('${b.id}')">
+      <div class="b-step">${b.step}</div>
+      <div class="b-ico">${b.ico}</div>
+      <div class="b-name">${b.name}</div>
+      <div class="b-out" id="bout-${b.id}"></div>
+      <div class="b-thinks" id="bth-${b.id}"></div>
+      <div class="b-st" id="bst-${b.id}">QUEUED</div>
+    </div>`).join("");
+  run();
+}
+
+// ---- full state captured from the SSE stream ----
+const STATE = {
+  company:"", market:"", country:"",
+  report:null, gap:null, competitors:[],
+  band:{}    // { site_selection: {...}, incentives: {...}, ... }
+};
+
+function run(){
+  fetch("/api/scout",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({companies:[q.company],target_market:q.market,country:q.country,headcount:10})
+  }).then(async resp=>{
+    const reader=resp.body.getReader(),dec=new TextDecoder();let buf="";
+    while(true){const{done,value}=await reader.read();if(done)break;
+      buf+=dec.decode(value,{stream:true});const lines=buf.split("\n");buf=lines.pop();
+      for(const ln of lines){if(ln.startsWith("data: ")){try{handle(JSON.parse(ln.slice(6)))}catch(e){console.error(e)}}}
+    }
+    $("pdot").classList.add("done");$("pText").textContent="Plan complete";
+  }).catch(e=>{showErr(e.message||"stream failed")});
+}
+
+function fmt(n){return "$"+Number(n||0).toLocaleString()}
+
+function handle(ev){
+  const d=ev.data||{};
+  switch(ev.type){
+    case "scout_start": STATE.company=ev.company; STATE.market=ev.market; STATE.country=ev.country; $("pText").textContent="Scouting market…"; break;
+
+    case "agent_complete":{
+      const id=ev.agent_id,m=AMETA[id];if(!m)break;
+      const card=$("ag-"+id);card.classList.remove("run");card.classList.add("done");
+      $("agst-"+id).textContent="DONE";$("agst-"+id).className="ag-st done";
+      const pct=d.max_score?Math.round(d.score/d.max_score*100):0;
+      $("agbar-"+id).style.width=pct+"%";
+      $("agsc-"+id).textContent=d.score+"/"+d.max_score+" · "+(d.strength||"").toUpperCase();
+      const evl=$("agev-"+id);
+      const srcs=d.sources||[];
+      // attach citation chip to each evidence line; cycle through available sources
+      (d.evidence||[]).slice(0,2).forEach((e,i)=>setTimeout(()=>{
+        const url = srcs[i % Math.max(srcs.length,1)] || "";
+        const isLive = url && /^https?:/.test(url) && !url.includes("example.com");
+        const chip  = url
+          ? `<a class="cite ${isLive?"":"warn"}" href="${url}" target="_blank" title="${url}">[${(i%Math.max(srcs.length,1))+1}]</a>`
+          : "";
+        evl.insertAdjacentHTML("beforeend",`<div>${e}${chip}</div>`);
+      },i*120));
+      break;
+    }
+
+    case "report":{
+      STATE.report=d;
+      const p=d.probability||0;
+      animateGauge(p);
+      $("verdict").textContent=d.verdict||"";
+      $("chips").innerHTML=`<span class="chip ${d.confidence}">${(d.confidence||"").toUpperCase()} CONFIDENCE</span><span class="chip">${d.timeline||""}</span>`;
+      $("pText").textContent="Discovering competition…";
+      break;
+    }
+
+    case "competitors_found":{
+      STATE.competitors=d.competitors||[];
+      const list=d.competitors||[];
+      const sources=d.sources||[];
+      const ds=d.data_sources||{};
+      const liveBadge = ds.basis==="bright_data_scrape"
+        ? `<span style="font-family:var(--mono);font-size:9px;padding:2px 6px;border-radius:3px;background:rgba(16,185,129,.15);color:#10b981;margin-left:8px">LIVE · Bright Data</span>`
+        : `<span style="font-family:var(--mono);font-size:9px;padding:2px 6px;border-radius:3px;background:rgba(245,158,11,.15);color:#f59e0b;margin-left:8px">FALLBACK</span>`;
+      const srcFooter = sources.length
+        ? `<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:.08em">// ALL SOURCES (Bright Data SERP) ${sources.slice(0,5).map((u,i)=>`<a href="${u}" target="_blank" class="cite" style="margin:0 4px">[${i+1}]</a>`).join("")}</div>`
+        : "";
+      // build a URL -> index map so per-competitor [N] matches the footer numbering
+      const urlIdx = {};
+      sources.forEach((u,i)=>{ if(u && !(u in urlIdx)) urlIdx[u]=i+1; });
+      $("compList").innerHTML=`<div style="margin-bottom:10px">${liveBadge}</div>` + (list.length?list.map(c=>{
+          const srcUrl = c.source_url || "";
+          const n = srcUrl && urlIdx[srcUrl] ? urlIdx[srcUrl] : "•";
+          const cite = srcUrl
+            ? `<a class="cite" style="margin-left:6px" href="${srcUrl}" target="_blank" title="${srcUrl}">[${n}]</a>`
+            : "";
+          return `
+        <div class="comp">
+          <div class="comp-h"><div class="comp-name">${c.name||"Competitor"}${cite}</div>
+            <div class="comp-threat t-${c.threat_level||"medium"}">${(c.threat_level||"med").toUpperCase()}</div></div>
+          <div class="sw">${(c.strengths||[]).slice(0,3).map(s=>`<span class="s-str">+ ${s}</span>`).join("")}</div>
+          <div class="sw">${(c.weaknesses||[]).slice(0,3).map(s=>`<span class="s-wk">− ${s}</span>`).join("")}</div>
+        </div>`;
+      }).join(""):`<div style="color:var(--muted);font-size:13px">No clear local incumbents found in scraped data — open field.</div>`) + srcFooter;
+      $("pText").textContent="Pinpointing the gap…";
+      break;
+    }
+
+    case "gap_analysis":{
+      STATE.gap=d;
+      $("gapTitle").textContent=d.gap_title||"Market gap";
+      $("gapSum").textContent=d.gap_summary||"";
+      $("gapSeg").innerHTML=(d.underserved_segments||[]).map(s=>`<span class="tag">${s}</span>`).join("")||"<span class='tag'>—</span>";
+      $("gapWeak").innerHTML=(d.incumbent_weaknesses||[]).map(s=>`<span class="tag">${s}</span>`).join("")||"<span class='tag'>—</span>";
+      if(d.recommended_wedge){const w=$("gapWedge");w.textContent="🎯 "+d.recommended_wedge;w.classList.remove("hidden")}
+      // gap data sources
+      const ds=d.data_sources||{};
+      const urls=ds.urls||[];
+      const live = ds.basis==="bright_data_scrape";
+      const liveBadge = live
+        ? `<span style="font-family:var(--mono);font-size:9px;padding:2px 6px;border-radius:3px;background:rgba(16,185,129,.15);color:#10b981">LIVE · Bright Data</span>`
+        : `<span style="font-family:var(--mono);font-size:9px;padding:2px 6px;border-radius:3px;background:rgba(245,158,11,.15);color:#f59e0b">LLM SYNTHESIS</span>`;
+      const links = urls.slice(0,4).map((u,i)=>`<a href="${u}" target="_blank" class="cite" style="margin:0 4px">[${i+1}]</a>`).join("");
+      $("gapSrc").innerHTML = `${liveBadge}${urls.length?`  // SOURCES ${links}`:""}`;
+      $("pText").textContent="Deploying the agent band…";
+      break;
+    }
+
+    case "band_start":
+      BAND.forEach(b=>$("bst-"+b.id).textContent="QUEUED");
+      break;
+
+    case "band_thought":{
+      const id=ev.agent, card=$("b-"+id), th=$("bth-"+id);
+      if(!card||!th)break;
+      card.classList.add("run"); card.classList.remove("active");
+      $("bst-"+id).textContent="THINKING";
+      // clear stale thoughts only when this is the first one for this agent (no existing children)
+      th.insertAdjacentHTML("beforeend",`<div class="th"><span class="blip">▸</span><span>${ev.text}</span></div>`);
+      // keep visible scroll within card
+      th.scrollTop=th.scrollHeight;
+      break;
+    }
+
+    case "band_agent":{
+      const id=ev.agent,card=$("b-"+id);if(!card)break;
+      STATE.band[id]=d;
+      card.classList.remove("run");card.classList.add("active");
+      $("bst-"+id).textContent="DONE";
+      $("bout-"+id).textContent=bandSummary(id,d);
+      // collapse thoughts once done so the card stays compact
+      const th=$("bth-"+id); if(th){ th.style.maxHeight="0"; th.style.overflow="hidden"; th.style.opacity="0"; th.style.marginTop="0"; }
+      const idx=BAND.findIndex(b=>b.id===id);if(idx>=0&&idx+1<BAND.length){const nx=$("b-"+BAND[idx+1].id);nx.classList.add("run");$("bst-"+BAND[idx+1].id).textContent="QUEUED"}
+      break;
+    }
+
+    case "complete":
+      Store.save("scout_result",d);
+      saveToHistory();
+      $("pdot").classList.add("done");$("pText").textContent="Plan complete ✓";
+      renderBriefing();
+      break;
+
+    case "error": showErr(ev.message||"error"); break;
+  }
+}
+
+function bandSummary(id,d){
+  try{
+    if(id==="site_selection"){const l=d.recommended_location||{};return `${l.city||"?"}, ${l.state||""} · score ${l.location_score??"—"}`}
+    if(id==="incentives"){return `Incentive fit: ${(d.incentive_fit||"medium").toUpperCase()}`}
+    if(id==="finance"){const c=(d.first_year_cost||{}).estimated_first_year_cost;return `${fmt(c)} yr-1 · ${d.finance_recommendation||""}`}
+    if(id==="compliance"){return `Reg risk: ${(d.regulatory_risk||"low").toUpperCase()} · ${(d.concerns||[]).length} items`}
+    if(id==="red_team"){return `${d.red_team_recommendation||""} · ${(d.challenges||[]).length} challenges`}
+    if(id==="human_approval"){return `Status: ${(d.status||"").replace(/_/g," ")}`}
+    if(id==="executive"){return `Decision: ${(d.decision||"").replace(/_/g," ")}`}
+    if(id==="task_assignment"){return `Tasks dispatched to ${Object.keys(d).length} teams`}
+  }catch(e){}
+  return "done";
+}
+
+function animateGauge(target){
+  const g=$("gauge"),n=$("gNum");let cur=0;
+  const col=target>=70?"#10b981":target>=40?"#f59e0b":"#ef4444";
+  n.style.color=col;
+  const t=setInterval(()=>{cur++;if(cur>=target){cur=target;clearInterval(t)}
+    n.textContent=cur+"%";g.style.background=`conic-gradient(${col} ${cur*3.6}deg,#0a1830 ${cur*3.6}deg)`;
+  },14);
+}
+
+function showErr(m){$("errBox").innerHTML=`<div class="err">⚠ ${m}</div>`}
+
+// ===== modal rendering per band agent =====
+const fmtUSD = n => "$" + Math.round(Number(n||0)).toLocaleString();
+
+const RENDER = {
+  site_selection(d){
+    const loc=d.recommended_location||{};
+    const alts=(d.alternatives||[]).map(a=>`
+      <div class="altsite">
+        <div><div class="nm">${a.city||"—"}${a.state?", "+a.state:""}</div><div class="reason">${a.reason||""}</div></div>
+        <div class="sc">${a.score??"—"}/100</div>
+      </div>`).join("")||"<div style='font-size:12px;color:var(--muted)'>no alternatives listed</div>";
+    return `
+      <h3>// recommended location</h3>
+      <div class="kv">
+        <div class="k">City</div><div class="v big">${loc.city||"—"}${loc.state?", "+loc.state:""}</div>
+        <div class="k">Country</div><div class="v">${loc.country||q.country}</div>
+        <div class="k">Location score</div><div class="v">${loc.location_score??"—"} / 100</div>
+      </div>
+      <h3>// why this location</h3>
+      <div class="lst">${(loc.why_this_location||[]).map(x=>`<div>${x}</div>`).join("")||"<div>—</div>"}</div>
+      <h3>// risks</h3>
+      <div class="lst warn">${(loc.risks||[]).map(x=>`<div>${x}</div>`).join("")||"<div>—</div>"}</div>
+      <h3>// alternatives considered</h3>
+      ${alts}`;
+  },
+  incentives(d){
+    return `
+      <h3>// fit assessment</h3>
+      <div class="kv">
+        <div class="k">Incentive fit</div><div class="v big" style="color:${d.incentive_fit==="high"?"#10b981":d.incentive_fit==="low"?"#ef4444":"#f59e0b"}">${(d.incentive_fit||"—").toUpperCase()}</div>
+        <div class="k">Score</div><div class="v">${d.incentive_score??"—"} / 100</div>
+      </div>
+      <h3>// available government support</h3>
+      <div class="lst">${(d.available_support||[]).map(x=>`<div>${x}</div>`).join("")||"<div>—</div>"}</div>
+      <h3>// likely requirements</h3>
+      <div class="lst warn">${(d.likely_requirements||[]).map(x=>`<div>${x}</div>`).join("")||"<div>—</div>"}</div>
+      <h3>// risks</h3>
+      <div class="lst bad">${(d.risks||[]).map(x=>`<div>${x}</div>`).join("")||"<div>—</div>"}</div>`;
+  },
+  finance(d){
+    const c=d.first_year_cost||{}; const ds=d.data_sources||{};
+    const rentLive = ds.rent_basis==="bright_data_scrape";
+    const salLive  = ds.salary_basis==="bright_data_scrape";
+    const badge = ok => ok
+      ? `<span style="font-family:var(--mono);font-size:9px;padding:2px 6px;border-radius:3px;background:rgba(16,185,129,.15);color:#10b981;margin-left:6px">LIVE · Bright Data</span>`
+      : `<span style="font-family:var(--mono);font-size:9px;padding:2px 6px;border-radius:3px;background:rgba(245,158,11,.15);color:#f59e0b;margin-left:6px">FALLBACK</span>`;
+    const rentLinks  = (ds.rent_urls||[]).slice(0,3).map(u=>`<div style="font-size:11px;word-break:break-all"><a href="${u}" target="_blank" style="color:#3b82f6;text-decoration:none">↗ ${u}</a></div>`).join("");
+    const salLinks   = (ds.salary_urls||[]).slice(0,3).map(u=>`<div style="font-size:11px;word-break:break-all"><a href="${u}" target="_blank" style="color:#3b82f6;text-decoration:none">↗ ${u}</a></div>`).join("");
+    return `
+      <h3>// year-1 cost breakdown</h3>
+      <div class="kv">
+        <div class="k">Total Year-1</div><div class="v big">${fmtUSD(c.estimated_first_year_cost)}</div>
+        <div class="k">Real estate</div><div class="v">${fmtUSD(c.real_estate_cost)} <span style="color:var(--muted);font-size:11px">(${c.office_sqft||"—"} sqft @ $${c.rent_psf_yr||"—"}/sqft/yr)</span></div>
+        <div class="k">Salaries</div><div class="v">${fmtUSD(c.salaries_cost)} <span style="color:var(--muted);font-size:11px">(${d.headcount} ppl @ $${(c.avg_salary_yr||0).toLocaleString()}/yr × 1.3 overhead)</span></div>
+        <div class="k">One-time setup</div><div class="v">${fmtUSD(c.one_time_setup_cost)}</div>
+        <div class="k">Legal & compliance</div><div class="v">${fmtUSD(c.legal_compliance_cost)}</div>
+        <div class="k">Contingency</div><div class="v">${fmtUSD(c.contingency)}</div>
+      </div>
+      <h3>// live market data ${badge(rentLive)} ${badge(salLive)}</h3>
+      <div class="kv">
+        <div class="k">Office rent</div><div class="v">$${c.rent_psf_yr||"—"} / sqft / yr</div>
+        <div class="k">Avg salary</div><div class="v">$${(c.avg_salary_yr||0).toLocaleString()} / yr</div>
+        <div class="k">Location</div><div class="v">${d.location?.city||"—"}, ${d.location?.country||"—"}</div>
+        <div class="k">Headcount</div><div class="v">${d.headcount??"—"}</div>
+      </div>
+      ${rentLinks?`<h3>// rent sources</h3>${rentLinks}`:""}
+      ${salLinks?`<h3>// salary sources</h3>${salLinks}`:""}
+      <h3>// recommendation</h3>
+      <div class="lst"><div>${d.finance_recommendation||"—"}</div></div>`;
+  },
+  compliance(d){
+    return `
+      <h3>// risk assessment</h3>
+      <div class="kv">
+        <div class="k">Regulatory risk</div><div class="v big" style="color:${d.regulatory_risk==="high"?"#ef4444":d.regulatory_risk==="medium"?"#f59e0b":"#10b981"}">${(d.regulatory_risk||"—").toUpperCase()}</div>
+        <div class="k">Human approval</div><div class="v">${d.human_approval_required?"Required":"Not required"}</div>
+      </div>
+      <h3>// concerns & required actions</h3>
+      <div class="lst warn">${(d.concerns||[]).map(x=>`<div>${x}</div>`).join("")||"<div>none flagged</div>"}</div>
+      <h3>// recommendation</h3>
+      <div class="lst"><div>${d.recommendation||"—"}</div></div>`;
+  },
+  red_team(d){
+    return `
+      <h3>// risk-adjusted impact</h3>
+      <div class="kv">
+        <div class="k">Adjustment</div><div class="v big" style="color:${(d.risk_adjustment||0)<0?"#ef4444":"#10b981"}">${d.risk_adjustment>=0?"+":""}${d.risk_adjustment??0}</div>
+        <div class="k">Recommendation</div><div class="v">${(d.red_team_recommendation||"—").toUpperCase()}</div>
+      </div>
+      <h3>// challenges raised</h3>
+      <div class="lst bad">${(d.challenges||[]).map(x=>`<div>${typeof x==="string"?x:JSON.stringify(x)}</div>`).join("")||"<div>none</div>"}</div>`;
+  },
+  human_approval(d){
+    const reason=d.reason||{};
+    return `
+      <h3>// approval status</h3>
+      <div class="kv">
+        <div class="k">Status</div><div class="v big">${(d.status||"—").replace(/_/g," ").toUpperCase()}</div>
+        <div class="k">Decision</div><div class="v">${(d.decision||d.default_demo_decision||"—").replace(/_/g," ")}</div>
+        <div class="k">Next step</div><div class="v">${d.next_step||"—"}</div>
+      </div>
+      ${d.question?`<h3>// question to approver</h3><div class="lst warn"><div>${d.question}</div></div>`:""}
+      <h3>// supporting context</h3>
+      <div class="kv">
+        <div class="k">Compliance risk</div><div class="v">${(reason.compliance_risk||"—").toUpperCase()}</div>
+        <div class="k">Red-team adj</div><div class="v">${reason.risk_adjustment??"—"}</div>
+        <div class="k">Approval needed</div><div class="v">${reason.human_required_by_compliance?"Yes":"No"}</div>
+      </div>`;
+  },
+  executive(d){
+    return `
+      <h3>// final decision</h3>
+      <div class="kv">
+        <div class="k">Decision</div><div class="v big">${(d.decision||"—").replace(/_/g," ").toUpperCase()}</div>
+        <div class="k">Entry probability</div><div class="v">${d.market_entry_probability??"—"}%</div>
+        <div class="k">Location</div><div class="v">${(d.recommended_location||{}).city||"—"}</div>
+        <div class="k">Incentive fit</div><div class="v">${(d.government_incentive_fit||"—").toUpperCase()}</div>
+        <div class="k">Regulatory risk</div><div class="v">${(d.regulatory_risk||"—").toUpperCase()}</div>
+        <div class="k">Year-1 cost</div><div class="v">${fmtUSD((d.estimated_first_year_cost||{}).estimated_first_year_cost)}</div>
+        <div class="k">Human review</div><div class="v">${(d.human_review_status||"—").replace(/_/g," ")}</div>
+      </div>
+      <h3>// executive summary</h3>
+      <div class="lst"><div>${d.executive_summary||"—"}</div></div>
+      ${(d.red_team_challenges||[]).length?`<h3>// red-team flags</h3><div class="lst bad">${d.red_team_challenges.map(x=>`<div>${typeof x==="string"?x:JSON.stringify(x)}</div>`).join("")}</div>`:""}`;
+  },
+  task_assignment(d){
+    if(!d||typeof d!=="object")return "<div>no tasks</div>";
+    const teams=Object.entries(d).filter(([k,v])=>Array.isArray(v));
+    if(!teams.length)return `<h3>// raw output</h3><div class="lst"><div><pre style="white-space:pre-wrap;font-size:11px">${JSON.stringify(d,null,2)}</pre></div></div>`;
+    return `<h3>// tasks dispatched</h3><div class="tasktbl">${teams.map(([team,tasks])=>`
+      <div class="team">${team}</div>
+      ${tasks.map(t=>{
+        if(typeof t==="string")return `<div class="task"><div class="ttl">${t}</div><div></div><div></div></div>`;
+        return `<div class="task">
+          <div><div class="ttl">${t.task||t.title||t.name||"task"}</div></div>
+          <div class="own">${t.owner||t.assignee||""}</div>
+          <div class="due">${t.deadline||t.due||""}</div>
+        </div>`;
+      }).join("")}`).join("")}</div>`;
+  }
+};
+
+function openModal(agentId){
+  const data=STATE.band[agentId]; if(!data)return;
+  const meta=BAND.find(b=>b.id===agentId)||{};
+  const renderer=RENDER[agentId];
+  const body=renderer?renderer(data):`<pre style="white-space:pre-wrap;font-size:12px">${JSON.stringify(data,null,2)}</pre>`;
+  $("modalBody").innerHTML=`<h2><span class="em">${meta.ico||""}</span> ${meta.name||agentId}</h2><div class="sub">// agent step ${meta.step||""} · ${STATE.company} · ${STATE.country}</div>${body}`;
+  $("modalBg").classList.add("show");
+}
+function closeModal(){$("modalBg").classList.remove("show")}
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModal()});
+
+// ===== executive briefing =====
+function renderBriefing(){
+  const fin=STATE.band.finance||{}, exec=STATE.band.executive||{}, comp=STATE.band.compliance||{}, rt=STATE.band.red_team||{}, site=STATE.band.site_selection||{};
+  const cost=(fin.first_year_cost||{}).estimated_first_year_cost||0;
+  const monthlyOp=(fin.first_year_cost||{}).annual_operating_cost||0;
+  const decision=(exec.decision||"pending").replace(/_/g," ");
+  const prob=(STATE.report||{}).probability||exec.market_entry_probability||0;
+  const loc=(site.recommended_location||{}).city||"—";
+
+  // KPI tiles
+  $("kpis").innerHTML=`
+    <div class="kpi green"><div class="lbl">Total Year-1 Spend</div><div class="val">${fmtUSD(cost)}</div><div class="hint">incl. setup + legal + contingency</div></div>
+    <div class="kpi blue"><div class="lbl">Entry Probability</div><div class="val">${prob}%</div><div class="hint">scout-agent consensus</div></div>
+    <div class="kpi amber"><div class="lbl">Recommended HQ</div><div class="val" style="font-size:22px">${loc}</div><div class="hint">site-selection score ${(site.recommended_location||{}).location_score??"—"}</div></div>
+    <div class="kpi ${comp.regulatory_risk==="high"?"red":comp.regulatory_risk==="medium"?"amber":"green"}"><div class="lbl">Regulatory Risk</div><div class="val" style="font-size:24px">${(comp.regulatory_risk||"—").toUpperCase()}</div><div class="hint">${(comp.concerns||[]).length} concerns flagged</div></div>`;
+
+  // Decision pill + rationale
+  $("briefDecision").innerHTML=`<div class="decision-pill">${decision.toUpperCase()}</div>`;
+  $("briefSummary").textContent=exec.executive_summary||"Decision pending consolidated review.";
+
+  // Risks: top items from red team + compliance
+  const risks=[...(rt.challenges||[]).map(x=>typeof x==="string"?x:(x.challenge||x.title||JSON.stringify(x))),
+               ...(comp.concerns||[])].slice(0,5);
+  $("briefRisks").innerHTML=risks.length?risks.map(r=>`<div>${r}</div>`).join(""):"<div>no major risks flagged</div>";
+
+  // 30-day plan from task assignment
+  const tasks=STATE.band.task_assignment||{};
+  const flat=[];
+  Object.entries(tasks).forEach(([team,arr])=>{
+    if(!Array.isArray(arr))return;
+    arr.forEach(t=>{
+      const title=typeof t==="string"?t:(t.task||t.title||t.name||"task");
+      const due=typeof t==="object"?(t.deadline||t.due||""):"";
+      flat.push({team,title,due});
+    });
+  });
+  $("briefPlan").innerHTML=flat.length?flat.slice(0,8).map(p=>`
+    <div class="d"><div class="day">${p.team.toUpperCase()}</div><div class="txt">${p.title}${p.due?` <span style="color:var(--amber)">· ${p.due}</span>`:""}</div></div>
+  `).join(""):"<div style='font-size:12px;color:var(--muted)'>No tasks dispatched.</div>";
+
+  $("brief").classList.remove("hidden");
+  setTimeout(()=>$("brief").classList.add("show"),50);
+  $("brief").scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+// ===== start over =====
+function newResearch(){
+  const running = !$("pdot").classList.contains("done");
+  if(running && !confirm("A scout is still running. Start a new one anyway?")) return;
+  try{
+    sessionStorage.removeItem("query");
+    sessionStorage.removeItem("scout_result");
+  }catch(e){}
+  window.location.href = "/";
+}
+
+// ===== history =====
+const HKEY = "scout_history";
+
+function loadHistory(){
+  try{ return JSON.parse(localStorage.getItem(HKEY))||[]; }catch{ return []; }
+}
+
+function saveToHistory(){
+  if(!STATE.company) return;
+  const hist = loadHistory();
+  const entry = {
+    id: Date.now(),
+    company: STATE.company,
+    market: STATE.market,
+    country: STATE.country,
+    probability: (STATE.report||{}).probability||0,
+    decision: (STATE.band.executive||{}).decision||"",
+    year1_cost: ((STATE.band.finance||{}).first_year_cost||{}).estimated_first_year_cost||0,
+    location: ((STATE.band.site_selection||{}).recommended_location||{}).city||"",
+    gap_title: (STATE.gap||{}).gap_title||"",
+    ts: new Date().toISOString(),
+    state: STATE,                 // full snapshot so we can re-render later
+  };
+  // dedupe: same company+market+country within the same day -> replace
+  const today=new Date().toDateString();
+  const filtered = hist.filter(h=>!(h.company===entry.company && h.market===entry.market &&
+                                    h.country===entry.country && new Date(h.ts).toDateString()===today));
+  filtered.unshift(entry);
+  try{ localStorage.setItem(HKEY, JSON.stringify(filtered.slice(0,30))); }catch(e){}
+}
+
+function fmtAgo(iso){
+  const d=new Date(iso), s=(Date.now()-d.getTime())/1000;
+  if(s<60) return "just now";
+  if(s<3600) return Math.floor(s/60)+"m ago";
+  if(s<86400) return Math.floor(s/3600)+"h ago";
+  const days=Math.floor(s/86400);
+  if(days<7) return days+"d ago";
+  return d.toLocaleDateString();
+}
+
+function renderHistory(){
+  const pop=$("histPop"), hist=loadHistory();
+  if(!hist.length){
+    pop.innerHTML=`<div class="hh">// recent scouts</div><div class="empty">No past scouts yet. Run one and it'll appear here.</div>`;
+    return;
+  }
+  pop.innerHTML = `<div class="hh">// recent scouts (${hist.length})</div>` +
+    hist.map(h=>`
+      <div class="hist-item" onclick="openHistory(${h.id})">
+        <div class="co">${h.company}</div>
+        <div class="pct">${h.probability}%</div>
+        <div class="meta">${h.market||"—"} · ${h.country||"—"} · ${fmtAgo(h.ts)} ${h.location?`· ${h.location}`:""}</div>
+        <button class="hist-del" onclick="event.stopPropagation();delHistory(${h.id})" title="Remove">×</button>
+      </div>`).join("") +
+    `<div class="hist-clear" onclick="clearHistory()">CLEAR ALL HISTORY</div>`;
+}
+
+function toggleHistory(e){
+  if(e) e.stopPropagation();
+  const pop=$("histPop");
+  if(pop.classList.contains("show")){ pop.classList.remove("show"); return; }
+  renderHistory();
+  pop.classList.add("show");
+}
+document.addEventListener("click", e=>{
+  const pop=$("histPop");
+  if(pop && pop.classList.contains("show") && !pop.contains(e.target)){
+    pop.classList.remove("show");
+  }
+});
+
+function openHistory(id){
+  const h=loadHistory().find(x=>x.id===id); if(!h) return;
+  // re-hydrate STATE and re-render everything
+  Object.assign(STATE, h.state);
+  $("coName").textContent=STATE.company;
+  $("mMarket").textContent=STATE.market||"—";
+  $("mCountry").textContent=STATE.country||"—";
+  // scout agents
+  Object.entries(AMETA).forEach(([id])=>{
+    const card=$("ag-"+id);if(!card)return;
+    card.classList.remove("run");card.classList.add("done");
+    $("agst-"+id).textContent="DONE";$("agst-"+id).className="ag-st done";
+    $("agbar-"+id).style.width="100%";
+  });
+  // report
+  if(STATE.report){
+    animateGauge(STATE.report.probability||0);
+    $("verdict").textContent=STATE.report.verdict||"";
+    $("chips").innerHTML=`<span class="chip ${STATE.report.confidence}">${(STATE.report.confidence||"").toUpperCase()} CONFIDENCE</span><span class="chip">${STATE.report.timeline||""}</span>`;
+  }
+  // competitors
+  const cl=STATE.competitors||[];
+  $("compList").innerHTML=cl.length?cl.map(c=>`
+    <div class="comp">
+      <div class="comp-h"><div class="comp-name">${c.name||"Competitor"}</div>
+        <div class="comp-threat t-${c.threat_level||"medium"}">${(c.threat_level||"med").toUpperCase()}</div></div>
+      <div class="sw">${(c.strengths||[]).slice(0,3).map(s=>`<span class="s-str">+ ${s}</span>`).join("")}</div>
+      <div class="sw">${(c.weaknesses||[]).slice(0,3).map(s=>`<span class="s-wk">− ${s}</span>`).join("")}</div>
+    </div>`).join(""):"";
+  // gap
+  if(STATE.gap){
+    $("gapTitle").textContent=STATE.gap.gap_title||"";
+    $("gapSum").textContent=STATE.gap.gap_summary||"";
+    $("gapSeg").innerHTML=(STATE.gap.underserved_segments||[]).map(s=>`<span class="tag">${s}</span>`).join("");
+    $("gapWeak").innerHTML=(STATE.gap.incumbent_weaknesses||[]).map(s=>`<span class="tag">${s}</span>`).join("");
+    if(STATE.gap.recommended_wedge){const w=$("gapWedge");w.textContent="🎯 "+STATE.gap.recommended_wedge;w.classList.remove("hidden")}
+  }
+  // band
+  BAND.forEach(b=>{
+    const data=STATE.band[b.id]; const card=$("b-"+b.id); if(!card)return;
+    if(data){
+      card.classList.add("active");card.classList.remove("run");
+      $("bst-"+b.id).textContent="DONE";
+      $("bout-"+b.id).textContent=bandSummary(b.id,data);
+    }
+  });
+  $("pdot").classList.add("done");
+  $("pText").textContent="Loaded from history";
+  renderBriefing();
+  $("histPop").classList.remove("show");
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+
+function delHistory(id){
+  const hist=loadHistory().filter(h=>h.id!==id);
+  localStorage.setItem(HKEY, JSON.stringify(hist));
+  renderHistory();
+}
+function clearHistory(){
+  if(!confirm("Delete all scout history?")) return;
+  localStorage.removeItem(HKEY);
+  renderHistory();
+}
+
+// ===== PDF download =====
+async function downloadPDF(){
+  try{
+    const {jsPDF}=window.jspdf;
+    const doc=new jsPDF({unit:"pt",format:"letter"});
+    const W=doc.internal.pageSize.getWidth(), M=48; let y=M;
+    const fin=STATE.band.finance||{}, exec=STATE.band.executive||{}, comp=STATE.band.compliance||{}, site=STATE.band.site_selection||{}, rt=STATE.band.red_team||{};
+    const cost=(fin.first_year_cost||{}).estimated_first_year_cost||0;
+
+    function line(text,size=10,bold=false,color=[30,30,30]){
+      if(y>740){doc.addPage();y=M}
+      doc.setFont("helvetica",bold?"bold":"normal").setFontSize(size).setTextColor(...color);
+      const lines=doc.splitTextToSize(text,W-2*M);
+      lines.forEach(l=>{if(y>740){doc.addPage();y=M}doc.text(l,M,y);y+=size*1.35});
+    }
+    function gap(h=10){y+=h}
+    function rule(){doc.setDrawColor(200).setLineWidth(.5).line(M,y,W-M,y);y+=14}
+
+    line("EXECUTIVE BRIEFING",22,true,[16,40,80]);
+    line(`${STATE.company} · ${STATE.market} · ${STATE.country}`,11,false,[80,80,80]);
+    gap(6); rule();
+
+    line("DECISION",10,true,[80,80,80]);
+    line((exec.decision||"pending").replace(/_/g," ").toUpperCase(),16,true,[16,120,80]);
+    gap(4);
+    line(exec.executive_summary||"Decision pending consolidated review.",11);
+    gap(8); rule();
+
+    line("KEY NUMBERS",10,true,[80,80,80]);
+    line(`Total Year-1 spend:  ${fmtUSD(cost)}`,12,true);
+    line(`Annual operating:    ${fmtUSD((fin.first_year_cost||{}).annual_operating_cost)}`,11);
+    line(`One-time setup:      ${fmtUSD((fin.first_year_cost||{}).one_time_setup_cost)}`,11);
+    line(`Legal & compliance:  ${fmtUSD((fin.first_year_cost||{}).legal_compliance_cost)}`,11);
+    line(`Contingency:         ${fmtUSD((fin.first_year_cost||{}).contingency)}`,11);
+    line(`Entry probability:   ${(STATE.report||{}).probability||0}%`,11);
+    line(`Recommended HQ:      ${(site.recommended_location||{}).city||"—"}`,11);
+    line(`Regulatory risk:     ${(comp.regulatory_risk||"—").toUpperCase()}`,11);
+    gap(8); rule();
+
+    line("MARKET GAP",10,true,[80,80,80]);
+    if(STATE.gap){
+      line(STATE.gap.gap_title||"",13,true);
+      line(STATE.gap.gap_summary||"",11);
+      gap(4);
+      line(`Wedge: ${STATE.gap.recommended_wedge||"—"}`,11,true,[16,120,80]);
+    } else line("No gap identified.",11);
+    gap(8); rule();
+
+    line("LOCAL COMPETITION",10,true,[80,80,80]);
+    (STATE.competitors||[]).slice(0,5).forEach(c=>{
+      line(`• ${c.name} — threat: ${(c.threat_level||"med").toUpperCase()}`,11,true);
+      (c.strengths||[]).slice(0,3).forEach(s=>line(`   + ${s}`,10,false,[40,120,60]));
+      (c.weaknesses||[]).slice(0,3).forEach(s=>line(`   − ${s}`,10,false,[160,40,40]));
+    });
+    gap(8); rule();
+
+    line("TOP RISKS",10,true,[80,80,80]);
+    const risks=[...(rt.challenges||[]).map(x=>typeof x==="string"?x:(x.challenge||x.title||JSON.stringify(x))),
+                 ...(comp.concerns||[])].slice(0,8);
+    if(risks.length)risks.forEach(r=>line(`• ${r}`,11));
+    else line("No major risks flagged.",11);
+    gap(8); rule();
+
+    line("NEXT STEPS (BY TEAM)",10,true,[80,80,80]);
+    const tasks=STATE.band.task_assignment||{};
+    Object.entries(tasks).forEach(([team,arr])=>{
+      if(!Array.isArray(arr)||!arr.length)return;
+      line(team.toUpperCase(),12,true,[16,80,140]);
+      arr.forEach(t=>{
+        const title=typeof t==="string"?t:(t.task||t.title||t.name||"task");
+        const due=typeof t==="object"?(t.deadline||t.due||""):"";
+        line(`  • ${title}${due?"  ("+due+")":""}`,10);
+      });
+      gap(4);
+    });
+
+    gap(10);
+    doc.setFontSize(8).setTextColor(120).text(`Generated ${new Date().toLocaleString()} · Market Entry Predictor`,M,780);
+    doc.save(`${STATE.company}_${STATE.country}_briefing.pdf`.replace(/\s+/g,"_"));
+  }catch(e){alert("PDF generation failed: "+e.message)}
+}
+
+init();
+</script>
+</body>
+</html>

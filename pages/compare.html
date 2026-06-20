@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Compare · Market Entry Predictor</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#030712;--card:#0d1f3c;--card2:#0a1830;--border:#1a3356;--green:#10b981;--blue:#3b82f6;--orange:#f97316;--purple:#8b5cf6;--amber:#f59e0b;--red:#ef4444;--text:#e2e8f0;--muted:#64748b;--mono:'Space Mono',monospace;--sans:'DM Sans',sans-serif;--display:'Bebas Neue',sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(16,185,129,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(16,185,129,.04) 1px,transparent 1px);background-size:60px 60px;pointer-events:none;z-index:0}
+.wrap{position:relative;z-index:1;max-width:1380px;margin:0 auto;padding:0 28px 80px}
+nav{padding:18px 32px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;background:rgba(3,7,18,.92);backdrop-filter:blur(16px)}
+.nav-logo{display:flex;align-items:center;gap:12px}
+.nav-box{width:34px;height:34px;border:2px solid var(--green);border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;font-weight:700;color:var(--green)}
+.nav-title{font-family:var(--display);font-size:19px;letter-spacing:.08em}
+.btn-link{background:var(--green);color:#000;border:none;border-radius:8px;padding:9px 18px;font-family:var(--sans);font-size:12px;font-weight:700;cursor:pointer;text-decoration:none}
+.btn-link:hover{background:#059669}
+
+.qbar{margin-top:28px;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px 26px;display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}
+.qbar h1{font-family:var(--display);font-size:38px;letter-spacing:.03em;line-height:1}
+.qmeta{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-top:6px}
+.qmeta b{color:var(--green)}
+.prog{font-family:var(--mono);font-size:11px;color:var(--muted);display:flex;align-items:center;gap:10px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--amber);animation:pulse 1.2s infinite}
+.dot.done{background:var(--green);animation:none}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+.sect-label{font-family:var(--mono);font-size:10px;letter-spacing:.16em;color:var(--muted);text-transform:uppercase;margin:34px 0 14px;display:flex;align-items:center;gap:10px}
+.sect-label::after{content:'';flex:1;height:1px;background:var(--border)}
+
+.cols{display:grid;gap:16px;align-items:start}
+.cols.n1{grid-template-columns:1fr}
+.cols.n2{grid-template-columns:1fr 1fr}
+.cols.n3{grid-template-columns:1fr 1fr 1fr}
+
+.ccard{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px;position:relative;overflow:hidden;transition:border-color .3s}
+.ccard.winner{border-color:var(--green);box-shadow:0 0 0 1px rgba(16,185,129,.15)}
+.ccard.winner::before{content:'🏆 RECOMMENDED';position:absolute;top:0;left:0;right:0;font-family:var(--mono);font-size:9px;letter-spacing:.18em;text-align:center;background:var(--green);color:#000;padding:5px;font-weight:700}
+.ccard.winner > *:first-child{margin-top:18px}
+.cc-flag{font-family:var(--mono);font-size:9px;color:var(--green);letter-spacing:.18em}
+.cc-country{font-family:var(--display);font-size:30px;letter-spacing:.03em;line-height:1.1;margin:4px 0 14px}
+
+.gauge{width:130px;height:130px;border-radius:50%;margin:6px auto 10px;display:flex;align-items:center;justify-content:center;background:conic-gradient(var(--green) 0deg,#0a1830 0deg);transition:background 1s ease}
+.gauge-inner{width:100px;height:100px;border-radius:50%;background:var(--card);display:flex;flex-direction:column;align-items:center;justify-content:center}
+.gauge-num{font-family:var(--display);font-size:38px;line-height:1;color:var(--green)}
+.gauge-lbl{font-family:var(--mono);font-size:7px;letter-spacing:.14em;color:var(--muted);text-transform:uppercase;margin-top:2px}
+.verdict{font-size:13px;font-weight:700;text-align:center;min-height:18px;margin-bottom:8px}
+.chips{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-bottom:14px}
+.chip{font-family:var(--mono);font-size:9px;padding:3px 7px;border-radius:5px;border:1px solid var(--border);color:var(--muted)}
+.chip.high{color:var(--green);border-color:rgba(16,185,129,.4)}
+.chip.medium{color:var(--amber);border-color:rgba(245,158,11,.4)}
+.chip.low{color:var(--red);border-color:rgba(239,68,68,.4)}
+
+.stage{padding:10px 0;border-top:1px solid var(--border)}
+.stage h4{font-family:var(--mono);font-size:9px;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;margin-bottom:8px}
+.gapline{font-size:12px;color:#cbd5e1;line-height:1.5}
+.gapline b{color:var(--green)}
+
+.miniband{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:8px}
+.mb{background:var(--card2);border:1px solid var(--border);border-radius:6px;padding:8px 6px;text-align:center;opacity:.4;transition:all .3s;font-size:9px}
+.mb.run{opacity:1;border-color:rgba(245,158,11,.5)}
+.mb.done{opacity:1;border-color:rgba(16,185,129,.4)}
+.mb .ico{font-size:14px;display:block;margin-bottom:2px}
+.mb .nm{font-family:var(--mono);font-size:7px;letter-spacing:.06em;color:var(--muted);line-height:1.2}
+.mb.done .nm{color:#10b981}
+
+.thoughts{margin-top:10px;min-height:18px}
+.thoughts .th{font-family:var(--mono);font-size:9px;color:#7c91b3;letter-spacing:.02em;line-height:1.5;opacity:0;animation:thFade .25s ease forwards}
+@keyframes thFade{to{opacity:.85}}
+
+.kv-mini{margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11px}
+.kv-mini .b{background:var(--card2);border:1px solid var(--border);border-radius:6px;padding:7px 9px}
+.kv-mini .b .k{font-family:var(--mono);font-size:8px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
+.kv-mini .b .v{font-weight:700;color:var(--text);margin-top:2px}
+
+/* head-to-head winner panel */
+.wpanel{margin-top:36px;background:linear-gradient(160deg,rgba(16,185,129,.08),rgba(139,92,246,.05));border:1px solid rgba(16,185,129,.35);border-radius:16px;padding:32px 36px;opacity:0;transition:opacity .5s}
+.wpanel.show{opacity:1}
+.wpanel h2{font-family:var(--display);font-size:42px;letter-spacing:.03em;margin-bottom:6px}
+.wpanel .sub{font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;margin-bottom:24px}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{text-align:left;font-family:var(--mono);font-size:9px;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;padding:10px 12px;border-bottom:1px solid var(--border)}
+.tbl td{padding:14px 12px;border-bottom:1px solid var(--border);vertical-align:top}
+.tbl tr.winner-row td{background:rgba(16,185,129,.06)}
+.tbl tr.winner-row td:first-child{position:relative}
+.tbl tr.winner-row td:first-child::before{content:'🏆 ';margin-right:4px}
+.tbl .country-name{font-weight:700;font-size:14px}
+.tbl .pct{font-family:var(--mono);font-weight:700}
+.tbl .pct.high{color:var(--green)} .tbl .pct.medium{color:var(--amber)} .tbl .pct.low{color:var(--red)}
+.tbl .cost{font-family:var(--mono);color:var(--text)}
+.tbl .risk{font-family:var(--mono);font-size:11px;padding:3px 8px;border-radius:4px;display:inline-block}
+.tbl .risk.low{background:rgba(16,185,129,.15);color:#10b981}
+.tbl .risk.medium{background:rgba(245,158,11,.15);color:#f59e0b}
+.tbl .risk.high{background:rgba(239,68,68,.15);color:#ef4444}
+.tbl .gap{font-size:11px;color:#cbd5e1;line-height:1.4;max-width:200px}
+.actions{margin-top:24px;display:flex;justify-content:flex-end;gap:10px}
+.btn-link.ghost{background:transparent;color:var(--text);border:1px solid var(--border)}
+.btn-link.ghost:hover{border-color:var(--green);color:var(--green);background:transparent}
+
+.err{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.4);color:#fca5a5;border-radius:10px;padding:14px 18px;margin-top:20px;font-family:var(--mono);font-size:12px}
+@media(max-width:980px){.cols.n2,.cols.n3{grid-template-columns:1fr}.tbl{display:block;overflow-x:auto}}
+</style>
+</head>
+<body>
+<nav>
+  <div class="nav-logo"><div class="nav-box">MEP</div><div class="nav-title">Compare</div></div>
+  <a href="/" class="btn-link">+ New Scout</a>
+</nav>
+
+<div class="wrap">
+  <div class="qbar">
+    <div>
+      <h1 id="coName">—</h1>
+      <div class="qmeta">Industry: <b id="mMarket">—</b> · Comparing: <b id="mCountries">—</b></div>
+    </div>
+    <div class="prog"><span class="dot" id="pdot"></span><span id="pText">Starting…</span></div>
+  </div>
+  <div id="errBox"></div>
+
+  <div class="sect-label">01 · Live Scouts Per Country</div>
+  <div class="cols" id="cols"></div>
+
+  <div class="wpanel" id="winnerPanel" style="display:none">
+    <h2>HEAD-TO-HEAD</h2>
+    <div class="sub">// ranked by entry probability · regulatory risk · year-1 cost</div>
+    <div style="overflow-x:auto"><table class="tbl" id="tbl"></table></div>
+    <div class="actions">
+      <button class="btn-link ghost" onclick="window.print()">Print</button>
+      <button class="btn-link" onclick="window.location.href='/'">+ New Scout</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const Store={save(k,d){sessionStorage.setItem(k,JSON.stringify(d))},load(k){try{return JSON.parse(sessionStorage.getItem(k))}catch{return null}}};
+const q=Store.load("query");
+const BAND=[
+  {id:"site_selection",ico:"📍",name:"Site"},
+  {id:"incentives",ico:"🎁",name:"Incentives"},
+  {id:"finance",ico:"💰",name:"Finance"},
+  {id:"compliance",ico:"⚖️",name:"Compliance"},
+  {id:"red_team",ico:"🛡️",name:"Red Team"},
+  {id:"human_approval",ico:"✋",name:"Approval"},
+  {id:"executive",ico:"👔",name:"Exec"},
+  {id:"task_assignment",ico:"📋",name:"Tasks"},
+];
+
+if(!q||!q.company||!q.countries||q.countries.length<1){location.href="/"}
+
+document.getElementById("coName").textContent=q.company;
+document.getElementById("mMarket").textContent=q.market||"—";
+document.getElementById("mCountries").textContent=q.countries.join(" · ");
+
+const cols=document.getElementById("cols");
+cols.className="cols n"+q.countries.length;
+
+const slug = s => s.toLowerCase().replace(/[^a-z0-9]+/g,"_");
+
+cols.innerHTML=q.countries.map(c=>{
+  const sl=slug(c);
+  return `<div class="ccard" id="card-${sl}">
+    <div class="cc-flag">// ${q.market.toUpperCase()}</div>
+    <div class="cc-country">${c}</div>
+    <div class="gauge" id="gauge-${sl}"><div class="gauge-inner"><div class="gauge-num" id="gnum-${sl}">0%</div><div class="gauge-lbl">Entry Readiness</div></div></div>
+    <div class="verdict" id="vd-${sl}"></div>
+    <div class="chips" id="ch-${sl}"></div>
+    <div class="kv-mini" id="kv-${sl}"></div>
+    <div class="stage">
+      <h4>// gap</h4>
+      <div class="gapline" id="gap-${sl}">searching…</div>
+    </div>
+    <div class="stage">
+      <h4>// 9-agent band</h4>
+      <div class="miniband">
+        ${BAND.map(b=>`<div class="mb" id="mb-${sl}-${b.id}"><span class="ico">${b.ico}</span><span class="nm">${b.name}</span></div>`).join("")}
+      </div>
+      <div class="thoughts" id="th-${sl}"></div>
+    </div>
+  </div>`;
+}).join("");
+
+function animateGauge(sl,target){
+  const g=document.getElementById("gauge-"+sl), n=document.getElementById("gnum-"+sl);
+  let cur=0;
+  const col=target>=70?"#10b981":target>=40?"#f59e0b":"#ef4444";
+  n.style.color=col;
+  const t=setInterval(()=>{cur++;if(cur>=target){cur=target;clearInterval(t)}
+    n.textContent=cur+"%";g.style.background=`conic-gradient(${col} ${cur*3.6}deg,#0a1830 ${cur*3.6}deg)`;
+  },14);
+}
+
+function fmtUSD(n){return "$"+Math.round(Number(n||0)).toLocaleString()}
+
+function handleInner(country, ev){
+  const sl=slug(country);
+  const d=ev.data||{};
+  switch(ev.type){
+    case "agent_complete":
+      // tiny progress hint in thoughts
+      break;
+    case "report":
+      animateGauge(sl, d.probability||0);
+      document.getElementById("vd-"+sl).textContent=d.verdict||"";
+      document.getElementById("ch-"+sl).innerHTML=`<span class="chip ${d.confidence}">${(d.confidence||"").toUpperCase()}</span><span class="chip">${d.timeline||""}</span>`;
+      break;
+    case "competitors_found":{
+      const k=document.getElementById("kv-"+sl);
+      const existing = k.innerHTML;
+      k.innerHTML = existing + `<div class="b"><div class="k">Competitors</div><div class="v">${(d.competitors||[]).length}</div></div><div class="b"><div class="k">Threat</div><div class="v">${(d.competitive_threat||"med").toUpperCase()}</div></div>`;
+      break;
+    }
+    case "gap_analysis":
+      document.getElementById("gap-"+sl).innerHTML=`<b>${d.gap_title||"—"}</b><br>${(d.gap_summary||"").substring(0,140)}${(d.gap_summary||"").length>140?"…":""}`;
+      break;
+    case "band_thought":{
+      const th=document.getElementById("th-"+sl);
+      // keep last 2 thoughts visible only
+      th.innerHTML=`<div class="th">▸ ${ev.text}</div>`;
+      const mb=document.getElementById("mb-"+sl+"-"+ev.agent);
+      if(mb){mb.classList.add("run")}
+      break;
+    }
+    case "band_agent":{
+      const mb=document.getElementById("mb-"+sl+"-"+ev.agent);
+      if(mb){mb.classList.remove("run");mb.classList.add("done")}
+      // finance done -> push cost into kv
+      if(ev.agent==="finance"){
+        const fyc=(d.first_year_cost||{}).estimated_first_year_cost;
+        const k=document.getElementById("kv-"+sl);
+        k.innerHTML = k.innerHTML + `<div class="b"><div class="k">Year-1 cost</div><div class="v">${fmtUSD(fyc)}</div></div>`;
+      }
+      if(ev.agent==="site_selection"){
+        const city=(d.recommended_location||{}).city||"—";
+        const k=document.getElementById("kv-"+sl);
+        k.innerHTML = `<div class="b"><div class="k">Recommended HQ</div><div class="v">${city}</div></div>` + k.innerHTML;
+      }
+      if(ev.agent==="compliance"){
+        const k=document.getElementById("kv-"+sl);
+        k.innerHTML = k.innerHTML + `<div class="b"><div class="k">Reg risk</div><div class="v">${(d.regulatory_risk||"—").toUpperCase()}</div></div>`;
+      }
+      break;
+    }
+    case "complete":
+      document.getElementById("card-"+sl).style.borderColor="rgba(16,185,129,.5)";
+      document.getElementById("th-"+sl).innerHTML=`<div class="th" style="color:#10b981">✓ scout complete</div>`;
+      break;
+    case "error":
+      document.getElementById("th-"+sl).innerHTML=`<div class="th" style="color:#ef4444">⚠ ${ev.message||"error"}</div>`;
+      break;
+  }
+}
+
+function renderWinner(summary){
+  const tbl=document.getElementById("tbl");
+  tbl.innerHTML=`<thead><tr>
+    <th>Country</th><th>Entry %</th><th>HQ City</th><th>Year-1 Cost</th>
+    <th>Reg Risk</th><th>Decision</th><th>Market Gap</th>
+  </tr></thead><tbody>${summary.map(s=>`
+    <tr class="${s.recommended?"winner-row":""}">
+      <td><div class="country-name">${s.country}</div></td>
+      <td><span class="pct ${s.confidence}">${s.probability}%</span></td>
+      <td>${s.city||"—"}</td>
+      <td class="cost">${fmtUSD(s.year1_cost)}</td>
+      <td><span class="risk ${s.reg_risk}">${(s.reg_risk||"—").toUpperCase()}</span></td>
+      <td>${(s.decision||"pending").replace(/_/g," ")}</td>
+      <td class="gap">${s.gap_title||"—"}</td>
+    </tr>`).join("")}</tbody>`;
+  const wp=document.getElementById("winnerPanel");
+  wp.style.display="block";
+  setTimeout(()=>{wp.classList.add("show");wp.scrollIntoView({behavior:"smooth",block:"start"})},50);
+}
+
+// SSE driver
+function run(){
+  let countriesDone=0;
+  const total=q.countries.length;
+  fetch("/api/compare",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({company:q.company, market:q.market, countries:q.countries, headcount:10})
+  }).then(async resp=>{
+    if(!resp.ok){throw new Error("server returned "+resp.status)}
+    const reader=resp.body.getReader(),dec=new TextDecoder();let buf="";
+    while(true){const{done,value}=await reader.read();if(done)break;
+      buf+=dec.decode(value,{stream:true});const lines=buf.split("\n");buf=lines.pop();
+      for(const ln of lines){if(ln.startsWith("data: ")){try{
+        const ev=JSON.parse(ln.slice(6));
+        if(ev.type==="compare_start"){document.getElementById("pText").textContent="Running "+total+" scouts in parallel…"}
+        else if(ev.type==="country_event"){
+          handleInner(ev.country, ev.inner);
+          if(ev.inner.type==="complete"){
+            countriesDone++;
+            document.getElementById("pText").textContent=`${countriesDone}/${total} complete`;
+          }
+        }
+        else if(ev.type==="compare_done"){
+          document.getElementById("pdot").classList.add("done");
+          document.getElementById("pText").textContent="All scouts complete ✓";
+          // mark winner card
+          const winner=ev.summary.find(s=>s.recommended);
+          if(winner){document.getElementById("card-"+slug(winner.country)).classList.add("winner")}
+          renderWinner(ev.summary);
+          Store.save("compare_result", ev.summary);
+        }
+      }catch(e){console.error(e)}}}
+    }
+  }).catch(err=>{
+    document.getElementById("errBox").innerHTML=`<div class="err">⚠ ${err.message}</div>`;
+  });
+}
+run();
+</script>
+</body>
+</html>
